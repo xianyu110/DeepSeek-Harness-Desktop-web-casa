@@ -243,6 +243,26 @@
     return desc.zh ?? desc.en ?? "";
   }
 
+  function marketFailureText(context: string, error: unknown): string {
+    const raw = String(error);
+    if (raw.startsWith("MARKET_TIMEOUT:")) {
+      return `${context}：请求超时，请检查网络后重试`;
+    }
+    if (raw.startsWith("MARKET_UNAVAILABLE:")) {
+      return `${context}：市场服务暂时不可用，请稍后重试`;
+    }
+    if (raw.startsWith("MARKET_INVALID_RESPONSE:")) {
+      return `${context}：市场服务返回了无法识别的数据`;
+    }
+    if (raw.startsWith("MARKET_HTTP_ERROR:")) {
+      return `${context}：市场服务返回 HTTP 错误`;
+    }
+    if (raw.startsWith("MARKET_API_ERROR:")) {
+      return `${context}：${raw.slice("MARKET_API_ERROR:".length).trim()}`;
+    }
+    return `${context}：${raw}`;
+  }
+
   function pluginStateText(state: PluginEntry["state"]): string {
     if (state === "pending") return "待激活";
     if (state === "active") return "已激活";
@@ -277,7 +297,7 @@
       marketNextCursor = res.page?.cursor ?? null;
       marketHasMore = res.page?.hasMore === true;
     } catch (e) {
-      marketError = "市场搜索失败：" + e;
+      marketError = marketFailureText("市场搜索失败", e);
     }
     marketBusy = false;
   }
@@ -301,7 +321,7 @@
       );
       marketImages = loaded.filter((src): src is string => src !== null);
     } catch (e) {
-      marketError = `插件详情加载失败：${e}`;
+      marketError = marketFailureText("插件详情加载失败", e);
     }
     marketDetailBusy = false;
   }
@@ -315,7 +335,7 @@
       // presents its current entryRevision for an explicit user confirmation.
       marketConfirm = await marketPrepareInstall(slug);
     } catch (e) {
-      marketError = "无法准备安装：" + e;
+      marketError = marketFailureText("无法准备安装", e);
     }
     marketPreparing = false;
   }
@@ -337,7 +357,7 @@
     void marketInstallPlugin(preview.slug, preview.entryRevision).catch((e) => {
       pluginBusy = false;
       pluginOperation = null;
-      pluginError = "市场安装失败：" + e;
+      pluginError = marketFailureText("市场安装失败", e);
       pluginLogsOpen = true;
       void refreshPlugins();
     });
@@ -361,7 +381,7 @@
       showToast("已激活 " + plugin.name + "；请重启 Harness 后加载");
       await refreshPlugins();
     } catch (e) {
-      pluginError = "激活失败：" + e;
+      pluginError = marketFailureText("激活失败", e);
     }
     pluginBusy = false;
   }
